@@ -5,7 +5,6 @@ const http = require('node:http')
 const consumers = require('node:stream/consumers')
 
 const express = require('express')
-const helmet = require('helmet')
 const morgan = require('morgan')
 
 const config = require('./config.js')
@@ -23,8 +22,6 @@ app.use(express.json({ limit: args.limit }))
 app.use(express.urlencoded({ extended: true, limit: args.limit }))
 
 app.use(morgan('combined', { stream: accessLogStream }))
-
-// app.use(helmet())
 
 app.use((err, req, res, next) => {
   if (
