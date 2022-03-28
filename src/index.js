@@ -4,7 +4,6 @@ const express = require('express')
 const fs = require('fs')
 const helmet = require('helmet')
 const morgan = require('morgan')
-const uuid = require('uuid')
 const config = require('./config.js')
 const rfs = require('rotating-file-stream')
 
@@ -199,7 +198,7 @@ function execCallback (req, res) {
   reqOptions.push('-x ' + explorationLevel)
 
   const timestamp = Math.floor(Date.now() / 1000); //eslint-disable-line
-  const fileName = args.logdir + '/' + timestamp + '_' + uuid.v1() + '.json'
+  const fileName = args.logdir + '/' + timestamp + '_' + crypto.randomUUID() + '.json'
   try {
     fs.writeFileSync(fileName, JSON.stringify(req.body))
   } catch (err) {
