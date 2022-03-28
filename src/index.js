@@ -13,29 +13,11 @@ const app = express()
 
 const HTTP_OK_CODE = 200
 const HTTP_ERROR_CODE = 400
-const HTTP_TOOLARGE_CODE = 413
 const HTTP_INTERNALERROR_CODE = 500
 
 const args = config.cliArgs
 app.use(express.json({ limit: args.limit }))
 app.use(express.urlencoded({ extended: true, limit: args.limit }))
-
-app.use((err, req, res, next) => {
-  if (
-    err instanceof SyntaxError &&
-    err.status === HTTP_ERROR_CODE &&
-    'body' in err
-  ) {
-    const message =
-      'Invalid JSON object in request, please add vehicles and jobs or shipments to the object body'
-    console.log(message)
-    res.status(HTTP_ERROR_CODE)
-    res.json({
-      code: config.vroomErrorCodes.input,
-      error: message
-    })
-  }
-})
 
 function fileExists (filePath) {
   try {
@@ -58,9 +40,7 @@ if (args.router !== 'libosrm') {
       options.push('-p', profileName + ':' + profile.port)
     } else {
       console.error(
-        "Incomplete configuration: profile '" +
-          profileName +
-          "' requires 'host' and 'port'."
+        `Incomplete configuration: profile '${profileName}' requires 'host' and 'port'.`
       )
     }
   }
@@ -74,13 +54,17 @@ if (args.planmode) {
   options.push('-c')
 }
 
-function execCallback (req, res) {
+async function execCallback (req, res) {
+  const json = await consumers.json(req)
+
   const reqOptions = options.slice()
 
   // Default command-line values.
   let nbThreads = args.threads
   let explorationLevel = args.explore
-  let opts = req.body.options || {}
+
+  /** @type {any} */
+  let opts = json || {}
 
   if (args.override && typeof opts === 'object') {
     // Optionally override defaults.
@@ -113,10 +97,11 @@ function execCallback (req, res) {
   reqOptions.push('-t ' + nbThreads)
   reqOptions.push('-x ' + explorationLevel)
 
-  const timestamp = Math.floor(Date.now() / 1000)
-  const fileName = args.logdir + '/' + timestamp + '_' + crypto.randomUUID() + '.json'
+  const timestamp = Date.now()
+  const fileName = `${args.logdir}/${timestamp}_${crypto.randomUUID()}.json`
+
   try {
-    fs.writeFileSync(fileName, JSON.stringify(req.body))
+    fs.writeFileSync(fileName, JSON.stringify(opts))
   } catch (err) {
     console.error(err)
 
@@ -134,10 +119,10 @@ function execCallback (req, res) {
 
   // Handle errors.
   vroom.on('error', err => {
-    const message = ['Unknown internal error', err].join(': ')
-    console.error(JSON.stringify(message))
-    res.status(HTTP_INTERNALERROR_CODE)
-    res.json({
+    const message = `Unknown internal error: ${err}`
+    console.error(message)
+
+    res.status(HTTP_INTERNALERROR_CODE).json({
       code: config.vroomErrorCodes.internal,
       error: message
     })
