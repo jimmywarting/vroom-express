@@ -1,11 +1,13 @@
-const { spawn } = require('child_process')
-const { webcrypto: crypto } = require('crypto')
+const { spawn } = require('node:child_process')
+const { webcrypto: crypto } = require('node:crypto')
+const fs = require('node:fs')
+
 const express = require('express')
-const fs = require('fs')
 const helmet = require('helmet')
 const morgan = require('morgan')
-const config = require('./config.js')
 const rfs = require('rotating-file-stream')
+
+const config = require('./config.js')
 
 // App and loaded modules.
 const app = express()
@@ -47,7 +49,7 @@ app.use((err, req, res, next) => {
   ) {
     const message =
       'Invalid JSON object in request, please add vehicles and jobs or shipments to the object body'
-    console.log(now() + ': ' + JSON.stringify(message))
+    console.log(message)
     res.status(HTTP_ERROR_CODE)
     res.send({
       code: config.vroomErrorCodes.input,
@@ -55,12 +57,6 @@ app.use((err, req, res, next) => {
     })
   }
 })
-
-// Simple date generator for console output.
-function now () {
-  const date = new Date()
-  return date.toUTCString()
-}
 
 function fileExists (filePath) {
   try {
@@ -70,7 +66,12 @@ function fileExists (filePath) {
   }
 }
 
-// Callback for size and some input validity checks.
+/**
+ * Callback for size and some input validity checks.
+ *
+ * @param {number} maxLocationNumber
+ * @param {number} maxVehicleNumber
+ */
 function sizeCheckCallback (maxLocationNumber, maxVehicleNumber) {
   return function (req, res, next) {
     const hasJobs = 'jobs' in req.body
@@ -80,7 +81,7 @@ function sizeCheckCallback (maxLocationNumber, maxVehicleNumber) {
     if (!correctInput) {
       const message =
         'Invalid JSON object in request, please add vehicles and jobs or shipments to the object body'
-      console.error(now() + ': ' + JSON.stringify(message))
+      console.error(message)
       res.status(HTTP_ERROR_CODE)
       res.send({
         code: config.vroomErrorCodes.input,
@@ -104,7 +105,7 @@ function sizeCheckCallback (maxLocationNumber, maxVehicleNumber) {
         ') in query, maximum is set to',
         maxLocationNumber
       ].join(' ')
-      console.error(now() + ': ' + JSON.stringify(message))
+      console.error(message)
       res.status(HTTP_TOOLARGE_CODE)
       res.send({
         code: config.vroomErrorCodes.tooLarge,
@@ -120,7 +121,7 @@ function sizeCheckCallback (maxLocationNumber, maxVehicleNumber) {
         ') in query, maximum is set to',
         maxVehicleNumber
       ].join(' ')
-      console.error(now() + ': ' + JSON.stringify(message))
+      console.error(message)
       res.status(HTTP_TOOLARGE_CODE)
       res.send({
         code: config.vroomErrorCodes.tooLarge,
@@ -161,7 +162,7 @@ if (args.planmode) {
 
 function execCallback (req, res) {
   const reqOptions = options.slice()
-
+  console.log(123)
   // Default command-line values.
   let nbThreads = args.threads
   let explorationLevel = args.explore
@@ -202,7 +203,7 @@ function execCallback (req, res) {
   try {
     fs.writeFileSync(fileName, JSON.stringify(req.body))
   } catch (err) {
-    console.error(now() + ': ' + err)
+    console.error(err)
 
     res.status(HTTP_INTERNALERROR_CODE)
     res.send({
@@ -219,7 +220,7 @@ function execCallback (req, res) {
   // Handle errors.
   vroom.on('error', err => {
     const message = ['Unknown internal error', err].join(': ')
-    console.error(now() + ': ' + JSON.stringify(message))
+    console.error(JSON.stringify(message))
     res.status(HTTP_INTERNALERROR_CODE)
     res.send({
       code: config.vroomErrorCodes.internal,
@@ -228,7 +229,7 @@ function execCallback (req, res) {
   })
 
   vroom.stderr.on('data', data => {
-    console.error(now() + ': ' + data.toString())
+    console.error(data)
   })
 
   // Handle solution. The temporary solution variable is required as
@@ -303,7 +304,7 @@ app.get(args.baseurl + 'health', (req, res) => {
 
   vroom.on('close', code => {
     if (code !== config.vroomErrorCodes.ok) {
-      console.error(`${now()}: ${msg}`)
+      console.error(msg)
     }
     res.status(status).send()
   })
