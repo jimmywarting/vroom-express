@@ -19,17 +19,6 @@ const HTTP_ERROR_CODE = 400
 const HTTP_TOOLARGE_CODE = 413
 const HTTP_INTERNALERROR_CODE = 500
 
-// Enable cross-origin ressource sharing.
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*')
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept'
-  )
-  res.setHeader('Content-Type', 'application/json')
-  next()
-})
-
 const args = config.cliArgs
 app.use(express.json({ limit: args.limit }))
 app.use(express.urlencoded({ extended: true, limit: args.limit }))
