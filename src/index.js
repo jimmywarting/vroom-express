@@ -1,6 +1,8 @@
 const { spawn } = require('node:child_process')
 const { webcrypto: crypto } = require('node:crypto')
 const fs = require('node:fs')
+const http = require('node:http')
+const consumers = require('node:stream/consumers')
 
 const express = require('express')
 const helmet = require('helmet')
@@ -39,7 +41,7 @@ const accessLogStream = rfs.createStream(args.logdir + '/access.log', {
 
 app.use(morgan('combined', { stream: accessLogStream }))
 
-app.use(helmet())
+// app.use(helmet())
 
 app.use((err, req, res, next) => {
   if (
@@ -51,7 +53,7 @@ app.use((err, req, res, next) => {
       'Invalid JSON object in request, please add vehicles and jobs or shipments to the object body'
     console.log(message)
     res.status(HTTP_ERROR_CODE)
-    res.send({
+    res.json({
       code: config.vroomErrorCodes.input,
       error: message
     })
@@ -83,7 +85,7 @@ function sizeCheckCallback (maxLocationNumber, maxVehicleNumber) {
         'Invalid JSON object in request, please add vehicles and jobs or shipments to the object body'
       console.error(message)
       res.status(HTTP_ERROR_CODE)
-      res.send({
+      res.json({
         code: config.vroomErrorCodes.input,
         error: message
       })
@@ -107,7 +109,7 @@ function sizeCheckCallback (maxLocationNumber, maxVehicleNumber) {
       ].join(' ')
       console.error(message)
       res.status(HTTP_TOOLARGE_CODE)
-      res.send({
+      res.json({
         code: config.vroomErrorCodes.tooLarge,
         error: message
       })
@@ -123,7 +125,7 @@ function sizeCheckCallback (maxLocationNumber, maxVehicleNumber) {
       ].join(' ')
       console.error(message)
       res.status(HTTP_TOOLARGE_CODE)
-      res.send({
+      res.json({
         code: config.vroomErrorCodes.tooLarge,
         error: message
       })
@@ -162,7 +164,7 @@ if (args.planmode) {
 
 function execCallback (req, res) {
   const reqOptions = options.slice()
-  console.log(123)
+
   // Default command-line values.
   let nbThreads = args.threads
   let explorationLevel = args.explore
@@ -206,7 +208,7 @@ function execCallback (req, res) {
     console.error(err)
 
     res.status(HTTP_INTERNALERROR_CODE)
-    res.send({
+    res.json({
       code: config.vroomErrorCodes.internal,
       error: 'Internal error'
     })
@@ -214,7 +216,7 @@ function execCallback (req, res) {
   }
 
   reqOptions.push('-i ' + fileName)
-
+  console.log(vroomCommand, reqOptions)
   const vroom = spawn(vroomCommand, reqOptions, { shell: true })
 
   // Handle errors.
@@ -222,14 +224,14 @@ function execCallback (req, res) {
     const message = ['Unknown internal error', err].join(': ')
     console.error(JSON.stringify(message))
     res.status(HTTP_INTERNALERROR_CODE)
-    res.send({
+    res.json({
       code: config.vroomErrorCodes.internal,
       error: message
     })
   })
 
   vroom.stderr.on('data', data => {
-    console.error(data)
+    console.error('[Vroom]' + data)
   })
 
   // Handle solution. The temporary solution variable is required as
@@ -315,3 +317,42 @@ const server = app.listen(args.port, () => {
 })
 
 server.setTimeout(args.timeout)
+
+
+const json = {
+  vehicles: [
+    {
+      id: 0,
+      start_index: 0,
+      end_index: 3
+    }
+  ],
+  jobs: [
+    {
+      id: 1414,
+      location_index: 1
+    },
+    {
+      id: 1515,
+      location_index: 2
+    }
+  ],
+  matrix: [
+    [0, 2104, 197, 1299],
+    [2103, 0, 2255, 3152],
+    [197, 2256, 0, 1102],
+    [1299, 3153, 1102, 0]
+  ]
+}
+const buffer = Buffer.from(JSON.stringify(json))
+const req = http.request('http://localhost:' + args.port + args.baseurl, {
+  method: 'POST',
+  headers: {
+    'content-type': 'application/json',
+    'content-length': buffer.length
+  }
+}, res => {
+  consumers.json(res).then(console.log)
+})
+
+req.end(buffer)
