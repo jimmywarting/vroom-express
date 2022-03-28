@@ -5,7 +5,6 @@ const http = require('node:http')
 const consumers = require('node:stream/consumers')
 
 const express = require('express')
-const morgan = require('morgan')
 
 const config = require('./config.js')
 
@@ -20,8 +19,6 @@ const HTTP_INTERNALERROR_CODE = 500
 const args = config.cliArgs
 app.use(express.json({ limit: args.limit }))
 app.use(express.urlencoded({ extended: true, limit: args.limit }))
-
-app.use(morgan('combined', { stream: accessLogStream }))
 
 app.use((err, req, res, next) => {
   if (
@@ -196,7 +193,7 @@ function execCallback (req, res) {
   }
 
   reqOptions.push('-i ' + fileName)
-  console.log(vroomCommand, reqOptions)
+
   const vroom = spawn(vroomCommand, reqOptions, { shell: true })
 
   // Handle errors.
@@ -331,8 +328,9 @@ const req = http.request('http://localhost:' + args.port + args.baseurl, {
     'content-type': 'application/json',
     'content-length': buffer.length
   }
-}, res => {
-  consumers.json(res).then(console.log)
+}, async res => {
+  const result = await consumers.json(res)
+  console.log(result.routes[0].steps)
 })
 
 req.end(buffer)
