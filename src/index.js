@@ -45,76 +45,10 @@ function fileExists (filePath) {
   }
 }
 
-/**
- * Callback for size and some input validity checks.
- *
- * @param {number} maxLocationNumber
- * @param {number} maxVehicleNumber
- */
-function sizeCheckCallback (maxLocationNumber, maxVehicleNumber) {
-  return function (req, res, next) {
-    const hasJobs = 'jobs' in req.body
-    const hasShipments = 'shipments' in req.body
-
-    const correctInput = (hasJobs || hasShipments) && 'vehicles' in req.body
-    if (!correctInput) {
-      const message =
-        'Invalid JSON object in request, please add vehicles and jobs or shipments to the object body'
-      console.error(message)
-      res.status(HTTP_ERROR_CODE)
-      res.json({
-        code: config.vroomErrorCodes.input,
-        error: message
-      })
-      return
-    }
-
-    let nbLocations = 0
-    if (hasJobs) {
-      nbLocations += req.body.jobs.length
-    }
-    if (hasShipments) {
-      nbLocations += 2 * req.body.shipments.length
-    }
-
-    if (nbLocations > maxLocationNumber) {
-      const message = [
-        'Too many locations (',
-        nbLocations,
-        ') in query, maximum is set to',
-        maxLocationNumber
-      ].join(' ')
-      console.error(message)
-      res.status(HTTP_TOOLARGE_CODE)
-      res.json({
-        code: config.vroomErrorCodes.tooLarge,
-        error: message
-      })
-      return
-    }
-    if (req.body.vehicles.length > maxVehicleNumber) {
-      const vehicles = req.body.vehicles.length
-      const message = [
-        'Too many vehicles (',
-        vehicles,
-        ') in query, maximum is set to',
-        maxVehicleNumber
-      ].join(' ')
-      console.error(message)
-      res.status(HTTP_TOOLARGE_CODE)
-      res.json({
-        code: config.vroomErrorCodes.tooLarge,
-        error: message
-      })
-      return
-    }
-    next()
-  }
-}
-
 const vroomCommand = args.path + 'vroom'
 const options = []
 options.push('-r', args.router)
+
 if (args.router !== 'libosrm') {
   const routingServers = config.routingServers
   for (const profileName in routingServers[args.router]) {
@@ -131,6 +65,7 @@ if (args.router !== 'libosrm') {
     }
   }
 }
+
 if (args.geometry) {
   options.push('-g')
 }
@@ -145,39 +80,40 @@ function execCallback (req, res) {
   // Default command-line values.
   let nbThreads = args.threads
   let explorationLevel = args.explore
+  let opts = req.body.options || {}
 
-  if (args.override && 'options' in req.body) {
+  if (args.override && typeof opts === 'object') {
     // Optionally override defaults.
 
     // Retrieve route geometry.
-    if (!args.geometry && 'g' in req.body.options && req.body.options.g) {
+    if (!args.geometry && opts.g) {
       reqOptions.push('-g')
     }
 
     // Set plan mode.
-    if (!args.planmode && 'c' in req.body.options && req.body.options.c) {
+    if (!args.planmode && opts.c) {
       reqOptions.push('-c')
     }
 
     // Adjust number of threads.
-    if ('t' in req.body.options && typeof req.body.options.t === 'number') {
-      nbThreads = req.body.options.t
+    if (typeof opts.t === 'number') {
+      nbThreads = opts.t
     }
 
     // Adjust exploration level.
-    if ('x' in req.body.options && typeof req.body.options.x === 'number') {
-      explorationLevel = req.body.options.x
+    if (typeof opts.x === 'number') {
+      explorationLevel = opts.x
     }
 
-    if ('l' in req.body.options && typeof req.body.options.l === 'number') {
-      reqOptions.push('-l ' + req.body.options.l)
+    if (typeof opts.l === 'number') {
+      reqOptions.push('-l ' + opts.l)
     }
   }
 
   reqOptions.push('-t ' + nbThreads)
   reqOptions.push('-x ' + explorationLevel)
 
-  const timestamp = Math.floor(Date.now() / 1000); //eslint-disable-line
+  const timestamp = Math.floor(Date.now() / 1000)
   const fileName = args.logdir + '/' + timestamp + '_' + crypto.randomUUID() + '.json'
   try {
     fs.writeFileSync(fileName, JSON.stringify(req.body))
@@ -251,12 +187,9 @@ function execCallback (req, res) {
       fs.unlinkSync(fileName)
     }
   })
-};
+}
 
-app.post(args.baseurl, [
-  sizeCheckCallback(args.maxlocations, args.maxvehicles),
-  execCallback
-])
+app.post(args.baseurl, execCallback)
 
 // set the health endpoint with some small problem
 app.get(args.baseurl + 'health', (req, res) => {
@@ -290,7 +223,7 @@ app.get(args.baseurl + 'health', (req, res) => {
 })
 
 const server = app.listen(args.port, () => {
-  console.log('vroom-express listening on port ' + args.port + '!')
+  console.log(`vroom-express listening on port ${args.port}!`)
 })
 
 server.setTimeout(args.timeout)
