@@ -1,4 +1,5 @@
 const { spawn } = require('child_process')
+const { webcrypto: crypto } = require('crypto')
 const express = require('express')
 const fs = require('fs')
 const helmet = require('helmet')

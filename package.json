@@ -31,8 +31,7 @@
     "js-yaml": "^4.1.0",
     "minimist": "^1.2.5",
     "morgan": "^1.10.0",
-    "rotating-file-stream": "^2.1.6",
-    "uuid": "^8.3.2"
+    "rotating-file-stream": "^2.1.6"
   },
   "repository": {
     "type": "git",
