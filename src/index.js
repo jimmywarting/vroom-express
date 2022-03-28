@@ -7,7 +7,6 @@ const consumers = require('node:stream/consumers')
 const express = require('express')
 const helmet = require('helmet')
 const morgan = require('morgan')
-const rfs = require('rotating-file-stream')
 
 const config = require('./config.js')
 
@@ -22,11 +21,6 @@ const HTTP_INTERNALERROR_CODE = 500
 const args = config.cliArgs
 app.use(express.json({ limit: args.limit }))
 app.use(express.urlencoded({ extended: true, limit: args.limit }))
-
-const accessLogStream = rfs.createStream(args.logdir + '/access.log', {
-  compress: 'gzip',
-  size: args.logsize
-})
 
 app.use(morgan('combined', { stream: accessLogStream }))
 
