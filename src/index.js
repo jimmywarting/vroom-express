@@ -217,7 +217,7 @@ const app = http.createServer((req, res) => {
 })
 
 const server = app.listen(args.port, () => {
-  console.log(`vroom-express listening on port ${args.port}!`)
+  console.log(`vroom-express running at: http://localhost:${args.port}`)
 })
 
 server.setTimeout(args.timeout)
