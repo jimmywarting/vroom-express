@@ -1,5 +1,6 @@
 {
   "name": "vroom-express",
+  "type": "module",
   "version": "0.10.0",
   "description": "An express server to expose VROOM as a web API.",
   "scripts": {
@@ -10,6 +11,10 @@
     "fix": "npm run-script fix:js && npm run-script fix:other",
     "prettier": "prettier \"**/*.{json,md,scss,yaml,yml}\"",
     "test:other": "npm run-script -- prettier --check -w"
+  },
+  "engines": {
+    "_": ">=16.7.0 is required for stream consumers...",
+    "node": ">=16.7.0"
   },
   "keywords": [
     "VROOM",
@@ -26,7 +31,6 @@
   "author": "Julien Coupey",
   "license": "BSD-2-Clause",
   "dependencies": {
-    "express": "^4.17.1",
     "js-yaml": "^4.1.0",
     "minimist": "^1.2.5"
   },

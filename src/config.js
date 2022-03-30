@@ -1,17 +1,13 @@
-const minimist = require('minimist')
-const yaml = require('js-yaml')
-const fs = require('fs')
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path';
+import minimist from 'minimist'
+import yaml from 'js-yaml'
 
-let config_yml
-try {
-  config_yml = yaml.load(fs.readFileSync('./config.yml'))
-} catch (err) {
-  console.log(
-    'Please provide a valid config.yml in the root.\nSee https://github.com/VROOM-Project/vroom-express#setup\n'
-  )
-  process.exitCode = 1
-  process.exit()
-}
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const buffer = fs.readFileSync('./config.yml')
+const str = new TextDecoder().decode(buffer)
+const config_yml = yaml.load(str)
 
 // Prefer env variable for router & access.log
 const router = process.env.VROOM_ROUTER || config_yml.cliArgs.router
@@ -34,7 +30,7 @@ const cliArgs = minimist(process.argv.slice(2), {
     explore: config_yml.cliArgs.explore, // exploration level to use (0..5) (-x)
     geometry: config_yml.cliArgs.geometry, // retrieve geometry (-g)
     limit: config_yml.cliArgs.limit, // max request size
-    logdir: logdir, // put logs in there
+    logdir, // put logs in there
     logsize: config_yml.cliArgs.logsize, // max log file size for rotation
     maxlocations: config_yml.cliArgs.maxlocations, // max number of jobs/shipments locations
     maxvehicles: config_yml.cliArgs.maxvehicles, // max number of vehicles
@@ -65,8 +61,10 @@ const vroomErrorCodes = {
   tooLarge: VROOM_TOOLARGE_CODE
 }
 
-module.exports = {
-  cliArgs: cliArgs,
-  routingServers: config_yml.routingServers,
-  vroomErrorCodes: vroomErrorCodes
+const routingServers = config_yml.routingServers
+
+export default {
+  cliArgs,
+  routingServers,
+  vroomErrorCodes
 }

@@ -1,23 +1,15 @@
-const { spawn } = require('node:child_process')
-const { webcrypto: crypto } = require('node:crypto')
-const fs = require('node:fs')
-const http = require('node:http')
-const consumers = require('node:stream/consumers')
+import { spawn } from 'node:child_process'
+import { Buffer } from 'node:buffer'
+import consumers from 'node:stream/consumers'
+import fs from 'node:fs'
+import http from 'node:http'
 
-const express = require('express')
-
-const config = require('./config.js')
-
-// App and loaded modules.
-const app = express()
+import config from './config.js'
 
 const HTTP_OK_CODE = 200
 const HTTP_ERROR_CODE = 400
 const HTTP_INTERNALERROR_CODE = 500
-
 const args = config.cliArgs
-app.use(express.json({ limit: args.limit }))
-app.use(express.urlencoded({ extended: true, limit: args.limit }))
 
 function fileExists (filePath) {
   try {
@@ -98,14 +90,14 @@ async function execCallback (req, res) {
   reqOptions.push('-x ' + explorationLevel)
 
   const timestamp = Date.now()
-  const fileName = `${args.logdir}/${timestamp}_${crypto.randomUUID()}.json`
+  const fileName = `${args.logdir}/${timestamp}_${Math.random() * 1E9|0}.json`
 
   try {
     fs.writeFileSync(fileName, JSON.stringify(opts))
   } catch (err) {
     console.error(err)
 
-    res.status(HTTP_INTERNALERROR_CODE)
+    res.statusCode = HTTP_INTERNALERROR_CODE
     res.json({
       code: config.vroomErrorCodes.internal,
       error: 'Internal error'
@@ -135,38 +127,45 @@ async function execCallback (req, res) {
   // Handle solution. The temporary solution variable is required as
   // we also want to adjust the status that is only retrieved with
   // 'exit', after data is written in stdout.
-  let solution = ''
+  /** @type {Buffer[]} */
+  let chunks = []
+  let status = 200
 
   vroom.stdout.on('data', data => {
-    solution += data.toString()
+    chunks.push(data)
   })
 
   vroom.on('close', (code, signal) => {
     switch (code) {
       case config.vroomErrorCodes.ok:
-        res.status(HTTP_OK_CODE)
+        status = HTTP_OK_CODE
         break
       case config.vroomErrorCodes.internal:
         // Internal error.
-        res.status(HTTP_INTERNALERROR_CODE)
+        status = HTTP_INTERNALERROR_CODE
         break
       case config.vroomErrorCodes.input:
         // Input error.
-        res.status(HTTP_ERROR_CODE)
+        status = HTTP_ERROR_CODE
         break
       case config.vroomErrorCodes.routing:
         // Routing error.
-        res.status(HTTP_INTERNALERROR_CODE)
+        status = HTTP_INTERNALERROR_CODE
         break
       default:
         // Required for e.g. vroom crash or missing command in $PATH.
-        res.status(HTTP_INTERNALERROR_CODE)
-        solution = {
+        status = HTTP_INTERNALERROR_CODE
+        chunks = [Buffer.from(JSON.stringify({
           code: config.vroomErrorCodes.internal,
           error: 'Internal error'
-        }
+        }))]
     }
-    res.send(solution)
+
+    const data = Buffer.concat(chunks)
+    res.statusCode = status
+    res.setHeader('content-type', 'application/json')
+    res.setHeader('content-length', data.length)
+    res.end(data)
 
     if (fileExists(fileName)) {
       fs.unlinkSync(fileName)
@@ -174,10 +173,8 @@ async function execCallback (req, res) {
   })
 }
 
-app.post(args.baseurl, execCallback)
-
 // set the health endpoint with some small problem
-app.get(args.baseurl + 'health', (req, res) => {
+function healthChecks(req, res) {
   const vroom = spawn(
     vroomCommand,
     ['-i', './healthchecks/vroom_custom_matrix.json'],
@@ -203,8 +200,20 @@ app.get(args.baseurl + 'health', (req, res) => {
     if (code !== config.vroomErrorCodes.ok) {
       console.error(msg)
     }
-    res.status(status).send()
+    res.statusCode = status
+    res.end('OK')
   })
+}
+
+const app = http.createServer((req, res) => {
+  if (req.url === '/health' && req.method === 'GET') {
+    healthChecks(req, res)
+  } else if (req.url === '/' && req.method === 'POST') {
+    execCallback(req, res)
+  } else {
+    res.statusCode = 404
+    res.end()
+  }
 })
 
 const server = app.listen(args.port, () => {
@@ -239,6 +248,7 @@ const json = {
     [1299, 3153, 1102, 0]
   ]
 }
+
 const buffer = Buffer.from(JSON.stringify(json))
 const req = http.request('http://localhost:' + args.port + args.baseurl, {
   method: 'POST',
@@ -250,5 +260,4 @@ const req = http.request('http://localhost:' + args.port + args.baseurl, {
   const result = await consumers.json(res)
   console.log(result.routes[0].steps)
 })
-
 req.end(buffer)
