@@ -260,6 +260,7 @@ const app = http.createServer((r, res) => {
     // @ts-ignore
     body: r
   })
+  console.log(url.pathname)
   if (url.pathname === '/health' && req.method === 'GET') {
     healthChecks(req, res)
   } else if (url.pathname === '/' && req.method === 'POST') {
