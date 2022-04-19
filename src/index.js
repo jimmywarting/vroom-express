@@ -252,7 +252,7 @@ function healthChecks(req, res) {
 }
 
 const app = http.createServer((r, res) => {
-
+  console.log(r)
   const url = new URL(r.url, `http://${r.headers.host}`).toString()
   const req = new Request(url, {
     // @ts-ignore
