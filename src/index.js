@@ -252,7 +252,7 @@ function healthChecks(req, res) {
 }
 
 const app = http.createServer((r, res) => {
-  const req = new Request(r.url, {
+  const req = new Request(new URL(r.url, `http://${r.headers.host}`), {
     // @ts-ignore
     headers: r.headers,
     method: r.method,
