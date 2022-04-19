@@ -31,7 +31,7 @@ const vroomCommand = args.path + 'vroom'
 const options = []
 options.push('-r', args.router)
 
-console.log('Starting Vroom server with', args.router)
+console.log('Starting Vroom server with:', args.router)
 
 if (args.router !== 'libosrm') {
   const routingServers = config.routingServers
@@ -271,44 +271,45 @@ const app = http.createServer((r, res) => {
 
 const server = app.listen(args.port, () => {
   console.log(`vroom-express running at: http://localhost:${args.port}`)
+
+  const json = {
+    vehicles: [
+      {
+        id: 0,
+        start_index: 0,
+        end_index: 3
+      }
+    ],
+    jobs: [
+      {
+        id: 1414,
+        location_index: 1
+      },
+      {
+        id: 1515,
+        location_index: 2
+      }
+    ],
+    matrix: [
+      [0, 2104, 197, 1299],
+      [2103, 0, 2255, 3152],
+      [197, 2256, 0, 1102],
+      [1299, 3153, 1102, 0]
+    ]
+  }
+
+  fetch('http://localhost:' + args.port, {
+    method: 'POST',
+    body: JSON.stringify(json)
+  }).then(res => {
+    console.log(res.status)
+    console.log(res.statusText)
+    console.log(Object.fromEntries(res.headers))
+    return res.json()
+  }).then(json => {
+    console.log(json)
+  })
+
 })
 
 server.setTimeout(args.timeout)
-
-const json = {
-  vehicles: [
-    {
-      id: 0,
-      start_index: 0,
-      end_index: 3
-    }
-  ],
-  jobs: [
-    {
-      id: 1414,
-      location_index: 1
-    },
-    {
-      id: 1515,
-      location_index: 2
-    }
-  ],
-  matrix: [
-    [0, 2104, 197, 1299],
-    [2103, 0, 2255, 3152],
-    [197, 2256, 0, 1102],
-    [1299, 3153, 1102, 0]
-  ]
-}
-
-fetch('http://localhost:' + args.port, {
-  method: 'POST',
-  body: JSON.stringify(json)
-}).then(res => {
-  console.log(res.status)
-  console.log(res.statusText)
-  console.log(Object.fromEntries(res.headers))
-  return res.json()
-}).then(json => {
-  console.log(json)
-})
