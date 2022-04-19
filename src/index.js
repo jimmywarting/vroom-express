@@ -253,6 +253,8 @@ function healthChecks(req, res) {
 
 const app = http.createServer((r, res) => {
   const url = new URL(r.url, `http://${r.headers.host}`)
+  console.log(url.pathname)
+
   const body = ['HEAD', 'GET'].includes(r.method.toUpperCase()) ? {} : {body: r}
   const req = new Request(url.toString(), {
     // @ts-ignore
@@ -260,7 +262,6 @@ const app = http.createServer((r, res) => {
     method: r.method,
     ...body
   })
-  console.log(url.pathname)
   if (url.pathname === '/health' && req.method === 'GET') {
     healthChecks(req, res)
   } else if (url.pathname === '/' && req.method === 'POST') {
