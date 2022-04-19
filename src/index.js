@@ -94,9 +94,7 @@ async function execCallback (req, res) {
   const { routeId, batchId, callbackUrl, ...json } = await req.json()
 
   if (callbackUrl) {
-    respondWithJson(callbackUrl, res, {
-      routeId,
-      batchId,
+    respondWithJson(undefined, res, {
       message: `processing orders, country code: ${json.countryCode}`,
       status: 'OK'
     })
