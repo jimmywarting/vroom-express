@@ -252,18 +252,17 @@ function healthChecks(req, res) {
 }
 
 const app = http.createServer((r, res) => {
-  console.log(r)
-  const url = new URL(r.url, `http://${r.headers.host}`).toString()
-  const req = new Request(url, {
+  const url = new URL(r.url, `http://${r.headers.host}`)
+  const req = new Request(url.toString(), {
     // @ts-ignore
     headers: r.headers,
     method: r.method,
     // @ts-ignore
     body: r
   })
-  if (req.url === '/health' && req.method === 'GET') {
+  if (url.pathname === '/health' && req.method === 'GET') {
     healthChecks(req, res)
-  } else if (req.url === '/' && req.method === 'POST') {
+  } else if (url.pathname === '/' && req.method === 'POST') {
     execCallback(req, res)
   } else {
     res.statusCode = 404
