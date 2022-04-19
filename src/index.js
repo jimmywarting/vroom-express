@@ -56,8 +56,51 @@ if (args.planmode) {
   options.push('-c')
 }
 
+/**
+ * @param {string|undefined} callback
+ * @param {http.ServerResponse} res
+ * @param {any} json
+ */
+function respondWithJson(callback, res, json, status = 200) {
+  if (callback) {
+    respondWithJsonToWebhook(callback, {
+      ...json,
+      statusCode: status,
+    })
+  } else {
+    const buffer = Buffer.from(JSON.stringify(json))
+    res.statusCode = status
+    res.setHeader('Content-Type', 'application/json')
+    res.setHeader('Content-Length', buffer.length)
+    res.end(buffer)
+  }
+}
+
+async function respondWithJsonToWebhook(callbackUrl, json) {
+  const res = await fetch(callbackUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(json)
+  })
+  // consume response to allow for GC
+  console.log(await res.text())
+}
+
+/**
+ * @param {Request} req
+ * @param {http.ServerResponse} res
+ */
 async function execCallback (req, res) {
-  const json = await req.json()
+  const { routeId, batchId, callbackUrl, ...json } = await req.json()
+
+  if (callbackUrl) {
+    respondWithJson(callbackUrl, res, {
+      routeId,
+      batchId,
+      message: `processing orders, country code: ${json.countryCode}`,
+      status: 'OK'
+    })
+  }
 
   const reqOptions = options.slice()
 
@@ -102,18 +145,7 @@ async function execCallback (req, res) {
   const timestamp = Date.now()
   const fileName = `${args.logdir}/${timestamp}_${Math.random() * 1E9|0}.json`
 
-  try {
-    fs.writeFileSync(fileName, JSON.stringify(opts))
-  } catch (err) {
-    console.error(err)
-
-    res.statusCode = HTTP_INTERNALERROR_CODE
-    res.json({
-      code: config.vroomErrorCodes.internal,
-      error: 'Internal error'
-    })
-    return
-  }
+  fs.writeFileSync(fileName, JSON.stringify(opts))
 
   reqOptions.push('-i ' + fileName)
 
@@ -122,14 +154,14 @@ async function execCallback (req, res) {
   // Handle errors.
   vroom.on('error', err => {
     const message = `Unknown internal error: ${err}`
-    console.error(message)
 
-    res.statusCode = HTTP_INTERNALERROR_CODE
-    res.setHeader('content-type', 'application/json')
-    res.end(JSON.stringify({
+    respondWithJson(callbackUrl, res, {
+      routeId,
+      batchId,
+      message,
       code: config.vroomErrorCodes.internal,
-      error: message
-    }))
+      error: 'Internal error'
+    }, HTTP_INTERNALERROR_CODE)
   })
 
   vroom.stderr.on('data', data => {
@@ -173,11 +205,13 @@ async function execCallback (req, res) {
         }))]
     }
 
-    const data = Buffer.concat(chunks)
-    res.statusCode = status
-    res.setHeader('content-type', 'application/json')
-    res.setHeader('content-length', data.length)
-    res.end(data)
+    const data = JSON.parse(Buffer.concat(chunks).toString())
+
+    respondWithJson(callbackUrl, res, {
+      ...data,
+      routeId,
+      batchId,
+    }, status)
 
     if (fileExists(fileName)) {
       fs.unlinkSync(fileName)
@@ -219,8 +253,10 @@ function healthChecks(req, res) {
 
 const app = http.createServer((r, res) => {
   const req = new Request(r.url, {
+    // @ts-ignore
     headers: r.headers,
     method: r.method,
+    // @ts-ignore
     body: r
   })
   if (req.url === '/health' && req.method === 'GET') {
@@ -265,7 +301,7 @@ const json = {
   ]
 }
 
-fetch('http://localhost:5050/', {
+fetch('http://localhost:' + args.port, {
   method: 'POST',
   body: JSON.stringify(json)
 }).then(res => {
