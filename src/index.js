@@ -258,7 +258,7 @@ const app = http.createServer((r, res) => {
     headers: r.headers,
     method: r.method,
     // @ts-ignore
-    body: r
+    body: ['HEAD', 'GET'].includes(r.method.toUpperCase()) ? null : r
   })
   console.log(url.pathname)
   if (url.pathname === '/health' && req.method === 'GET') {
