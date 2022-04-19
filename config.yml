@@ -11,7 +11,7 @@ cliArgs:
   override: true # allow cli options override (-c, -g, -t and -x)
   path: '' # VROOM path (if not in $PATH)
   port: 3000 # expressjs port
-  router: 'osrm' # routing backend (osrm, libosrm or ors)
+  router: 'valhalla' # routing backend (osrm, libosrm or ors)
   timeout: 300000 # milli-seconds
   baseurl: '/' #base url for api
 routingServers:

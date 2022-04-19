@@ -1,10 +1,18 @@
 import { spawn } from 'node:child_process'
 import { Buffer } from 'node:buffer'
-import consumers from 'node:stream/consumers'
 import fs from 'node:fs'
 import http from 'node:http'
-
 import config from './config.js'
+
+/** @typedef {function(Request, http.ServerResponse): void} RequestHandler */
+
+/**
+ * Declare our "logFirst" type (which is a function)
+ *
+ * @callback TypeFnLogFirst
+ * @param {number} times
+ * @returns {void}
+ */
 
 const HTTP_OK_CODE = 200
 const HTTP_ERROR_CODE = 400
@@ -22,6 +30,8 @@ function fileExists (filePath) {
 const vroomCommand = args.path + 'vroom'
 const options = []
 options.push('-r', args.router)
+
+console.log('Starting Vroom server with', args.router)
 
 if (args.router !== 'libosrm') {
   const routingServers = config.routingServers
@@ -47,7 +57,7 @@ if (args.planmode) {
 }
 
 async function execCallback (req, res) {
-  const json = await consumers.json(req)
+  const json = await req.json()
 
   const reqOptions = options.slice()
 
@@ -114,10 +124,12 @@ async function execCallback (req, res) {
     const message = `Unknown internal error: ${err}`
     console.error(message)
 
-    res.status(HTTP_INTERNALERROR_CODE).json({
+    res.statusCode = HTTP_INTERNALERROR_CODE
+    res.setHeader('content-type', 'application/json')
+    res.end(JSON.stringify({
       code: config.vroomErrorCodes.internal,
       error: message
-    })
+    }))
   })
 
   vroom.stderr.on('data', data => {
@@ -205,7 +217,12 @@ function healthChecks(req, res) {
   })
 }
 
-const app = http.createServer((req, res) => {
+const app = http.createServer((r, res) => {
+  const req = new Request(r.url, {
+    headers: r.headers,
+    method: r.method,
+    body: r
+  })
   if (req.url === '/health' && req.method === 'GET') {
     healthChecks(req, res)
   } else if (req.url === '/' && req.method === 'POST') {
@@ -221,7 +238,6 @@ const server = app.listen(args.port, () => {
 })
 
 server.setTimeout(args.timeout)
-
 
 const json = {
   vehicles: [
@@ -249,15 +265,14 @@ const json = {
   ]
 }
 
-const buffer = Buffer.from(JSON.stringify(json))
-const req = http.request('http://localhost:' + args.port + args.baseurl, {
+fetch('http://localhost:5050/', {
   method: 'POST',
-  headers: {
-    'content-type': 'application/json',
-    'content-length': buffer.length
-  }
-}, async res => {
-  const result = await consumers.json(res)
-  console.log(result.routes[0].steps)
+  body: JSON.stringify(json)
+}).then(res => {
+  console.log(res.status)
+  console.log(res.statusText)
+  console.log(Object.fromEntries(res.headers))
+  return res.json()
+}).then(json => {
+  console.log(json)
 })
-req.end(buffer)

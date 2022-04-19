@@ -5,16 +5,11 @@
   "description": "An express server to expose VROOM as a web API.",
   "scripts": {
     "test": "npm run-script test:other && npm run-script test:js",
-    "start": "node src/index.js",
-    "fix:other": "npm run-script -- prettier --write",
-    "fix:js": "npm run-script -- test:js --fix",
-    "fix": "npm run-script fix:js && npm run-script fix:other",
-    "prettier": "prettier \"**/*.{json,md,scss,yaml,yml}\"",
-    "test:other": "npm run-script -- prettier --check -w"
+    "start": "node --experimental-fetch src/index.js"
   },
   "engines": {
     "_": ">=16.7.0 is required for stream consumers...",
-    "node": ">=16.7.0"
+    "node": ">=17.8.0"
   },
   "keywords": [
     "VROOM",
@@ -31,6 +26,7 @@
   "author": "Julien Coupey",
   "license": "BSD-2-Clause",
   "dependencies": {
+    "@types/node": "^17.0.23",
     "js-yaml": "^4.1.0",
     "minimist": "^1.2.5"
   },
