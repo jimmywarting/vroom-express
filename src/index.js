@@ -31,7 +31,7 @@ const vroomCommand = args.path + 'vroom'
 const options = []
 options.push('-r', args.router)
 
-console.log('Starting Vroom server with:', args.router)
+console.log('Starting Vroom server with', args.router)
 
 if (args.router !== 'libosrm') {
   const routingServers = config.routingServers
